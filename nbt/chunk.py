@@ -1,6 +1,5 @@
 """
 Handles a single chunk of data (16x16x128 blocks) from a Minecraft save.
-Chunk is currently McRegion only.
 """
 from io import BytesIO
 from struct import pack, unpack
@@ -11,11 +10,18 @@ class Chunk(object):
 	def __init__(self, nbt):
 		chunk_data = nbt['Level']
 		self.coords = chunk_data['xPos'],chunk_data['zPos']
-		self.blocks = BlockArray(chunk_data['Blocks'].value, chunk_data['Data'].value)
+		self.sections = [None]*16
+		for section_data in chunk_data['Sections']:
+		  self.sections[section_data['Y'].value] = BlockArray(section_data['Blocks'].value, section_data['Data'].value)
 
 	def get_coords(self):
 		"""Return the coordinates of this chunk."""
 		return (self.coords[0].value,self.coords[1].value)
+
+	def get_block(self, x, y, z):
+		d,m = divmod(y, 16)
+		if self.sections[d]:
+			return self.sections[d].get_block(x, m, z)
 
 	def __repr__(self):
 		"""Return a representation of this Chunk."""
@@ -171,13 +177,13 @@ class BlockArray(object):
 		        blocks.append(Block(x,y,z))
 		"""
 
-		offset = y + z*128 + x*128*16 if (coord == False) else coord[1] + coord[2]*128 + coord[0]*128*16
+		offset = y*16*16 + z*16 + x if (coord == False) else coord[0] + coord[2]*16 + coord[1]*16*16
 		return self.blocksList[offset]
 
 	# Get a given X,Y,Z or a tuple of three coordinates
 	def get_data(self, x,y,z, coord=False):
 		"""Return the data of the block at x, y, z."""
-		offset = y + z*128 + x*128*16 if (coord == False) else coord[1] + coord[2]*128 + coord[0]*128*16
+		offset = y*16*16 + z*16 + x if (coord == False) else coord[0] + coord[2]*16 + coord[1]*16*16
 		# The first byte of the Blocks arrays correspond
 		# to the LEAST significant bits of the first byte of the Data.
 		# NOT to the MOST significant bits, as you might expected.
