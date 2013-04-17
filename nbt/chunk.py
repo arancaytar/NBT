@@ -12,7 +12,8 @@ class Chunk(object):
 		self.coords = chunk_data['xPos'],chunk_data['zPos']
 		self.sections = [None]*16
 		for section_data in chunk_data['Sections']:
-		  self.sections[section_data['Y'].value] = BlockArray(section_data['Blocks'].value, section_data['Data'].value)
+			add = section_data['Add'].value if 'Add' in section_data.keys() else None
+			self.sections[section_data['Y'].value] = BlockArray(section_data['Blocks'].value, add, section_data['Data'].value)
 
 	def get_coords(self):
 		"""Return the coordinates of this chunk."""
@@ -30,13 +31,17 @@ class Chunk(object):
 
 class BlockArray(object):
 	"""Convenience class for dealing with a Block/data byte array."""
-	def __init__(self, blocksBytes=None, dataBytes=None):
+	def __init__(self, blocksBytes=None, addBytes=None, dataBytes=None):
 		"""Create a new BlockArray, defaulting to no block or data bytes."""
 		if isinstance(blocksBytes, (bytearray, array.array)):
 			self.blocksList = list(blocksBytes)
 		else:
 			self.blocksList = [0]*32768 # Create an empty block list (32768 entries of zero (air))
 
+		if isinstance(addBytes, (bytearray, array.array)):
+			self.addList = list(addBytes)
+		else:
+			self.addList = [0]*16384 # Create an empty data list (32768 4-bit entries of zero make 16384 byte entries)
 		if isinstance(dataBytes, (bytearray, array.array)):
 			self.dataList = list(dataBytes)
 		else:
@@ -59,10 +64,22 @@ class BlockArray(object):
 			bits.append((b >> 4) & 15) # Big end of the byte
 		return bits
 
+	def get_all_add(self):
+		"""Return the data of all the blocks in this BlockArray."""
+		bits = []
+		for b in self.addList:
+			# The first byte of the Blocks arrays correspond
+			# to the LEAST significant bits of the first byte of the Data.
+			# NOT to the MOST significant bits, as you might expected.
+			bits.append(b & 15) # Little end of the byte
+			bits.append((b >> 4) & 15) # Big end of the byte
+		return bits
+		
+
 	# Get all block entries and data entries as tuples
-	def get_all_blocks_and_data(self):
+	def get_all(self):
 		"""Return both blocks and data, packed together as tuples."""
-		return list(zip(self.get_all_blocks(), self.get_all_data()))
+		return list(zip(self.get_all_blocks(), self.get_all_add(), self.get_all_data()))
 
 	def get_blocks_struct(self):
 		"""Return a dictionary with block ids keyed to (x, y, z)."""
