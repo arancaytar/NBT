@@ -3,9 +3,10 @@ python:
  - "2.6"
  - "2.7"
  - "3.2"
+ - "3.3"
  - "pypy"
 install: 
  - sudo apt-get install zlib1g zlib1g-dev
- - sudo ln -s /usr/lib/i386-linux-gnu/libz.so /usr/lib/
- - pip install PIL --use-mirrors ; true
+ - sudo ln -s /usr/lib/x86_64-linux-gnu/libz.so /usr/lib/
+ - pip install pillow unittest2 --use-mirrors ; true
 script: tests/alltests.py
