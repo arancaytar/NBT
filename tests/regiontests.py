@@ -6,9 +6,6 @@ import logging
 import random
 import time
 import zlib
-import subprocess
-import locale
-import gc
 
 import unittest
 try:
@@ -16,6 +13,9 @@ try:
 except ImportError:
     # Python 2.6 has an older unittest API. The backported package is available from pypi.
     import unittest2 as unittest
+
+# local modules
+from utils import open_files
 
 # Search parent directory first, to make sure we test the local nbt module, 
 # not an installed nbt module.
@@ -89,50 +89,6 @@ def generate_compressed_level(minsize = 2000, maxsize = None):
                              "Result is %d bytes.\n") % (targetsize, tries, resultsize))
             break
     return level
-
-def open_files(pid=None, close_unused=True):
-    """
-    Return a dict of open files for the given process.
-    The key of the dict is the file descriptor (a number).
-    
-    If PID is not specified, the PID of the current program is used.
-    Only regular open files are returned.
-    
-    If close_unused is True, do garbage collection prior to getting the list
-    of open files. This makes open_files() more reliable, as files which are
-    no longer reachable or used, but not yet closed by the resource manager.
-    
-    This function relies on the external `lsof` program.
-    This function may raise an OSError.
-    """
-    if pid is None:
-        pid = os.getpid()
-    if close_unused:
-        # garbage collection. Ensure that unreachable files are closed, making
-        # the output of open_files() more reliable.
-        gc.collect()
-    # lsof lists open files, including sockets, etc.
-    command = ['lsof', '-nlP', '-b', '-w', '-p', str(pid), '-F', 'ftn']
-    # set LC_ALL=UTF-8, so non-ASCII files are properly reported.
-    env = dict(os.environ).copy()
-    env['LC_ALL'] = 'UTF-8'
-    # Open a subprocess, wait till it is done, and get the STDOUT result
-    output = subprocess.Popen(command, stdout=subprocess.PIPE, env=env).communicate()[0]
-    # decode the output and split in lines.
-    output = output.decode('utf-8').split('\n')
-    files = {}
-    state = {'f': '', 't': ''}
-    for line in output:
-        try:
-            linetype, line = line[0], line[1:]
-        except IndexError:
-            continue
-        state[linetype] = line
-        if linetype == 'n':
-            if state['t'] == 'REG' and state['f'].isdigit():
-                files[int(state['f'])] = line
-                state = {'f': '', 't': ''}
-    return files
 
 class PedanticFileWrapper(object):
     """Pedantic wrapper around a file object. 
@@ -765,6 +721,8 @@ class ReadWriteTest(unittest.TestCase):
         self.assertEqual(header[1], 3, "Chunk length must be 3 sectors")
         self.assertEqual(header[0], 2, "Chunk should be placed in sector 2")
 
+    # TODO: test write_blockdata, with different compressions. Check the metadata. Read the data back.
+
     def test070WriteOutOfFileChunk(self):
         """
         write 1 sector chunk 13,0 (should go to 004)
@@ -1019,6 +977,7 @@ class ReadWriteTest(unittest.TestCase):
         Check if first byte in sector 026 is not zeroed.
         """
         raise unittest.SkipTest("Test can't use this testfile")
+        # TODO: Why not? Create other test file
 
 
 
@@ -1112,6 +1071,7 @@ class RegionFileInitTest(unittest.TestCase):
         openfiles_after = open_files()
         
         fileobj.close()
+
         self.assertNotEqual(len(openfiles_during), 0)
         self.assertEqual(openfiles_before, openfiles_during)
         self.assertEqual(openfiles_before, openfiles_after, \
@@ -1146,6 +1106,7 @@ class RegionFileInitTest(unittest.TestCase):
         self.assertEqual(openfiles_before, openfiles_after)
 
 
+# TODO: write tests
 # class PartialHeaderFileTest(EmptyFileTest):
 #   """Test for file support with only a partial header file.
 #   These files should be treated as a valid region file without any stored chunk."""
@@ -1309,6 +1270,9 @@ class LengthTest(unittest.TestCase):
         self.region.unlink_chunk(1, 0)
         self.assertEqual(self.region.chunk_count(), 1)
 
+
+# TODO: check if metadata is updated after deleting or writing a chunk
+# TODO: in tests, replace region.header or region.chunk_headers with region.metadata
 
 if __name__ == '__main__':
     logger = logging.getLogger("nbt.tests.regiontests")

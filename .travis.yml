@@ -1,14 +1,31 @@
+# Configuration file for travis-ci.org. Travis is a /continuous integration/ tool that runs tests.
 language: python
 python:
- - "2.6"
- - "2.7"
- - "3.2"
- - "3.3"
- - "3.4"
- - "pypy"
- - "pypy3"
-install: 
- - sudo apt-get install zlib1g zlib1g-dev curl
- - sudo ln -s /usr/lib/x86_64-linux-gnu/libz.so /usr/lib/
- - pip install pillow unittest2 ; true
-script: tests/alltests.py
+  - "2.6"
+  - "2.7"
+  - "3.2"
+  - "3.3"
+  - "3.4"
+  - "pypy"
+  - "pypy3"
+sudo: false
+addons:
+  apt:
+    packages:
+    - curl
+    - zlib1g
+    - zlib1g-dev
+install:
+ # unittest2 is not yet included in Python 2.6. Install using pip.
+ - if [[ $TRAVIS_PYTHON_VERSION == '2.6' ]]; then travis_retry pip install unittest2; fi
+ # Install python-coveralls
+ - pip install coveralls
+ # pillow is (only) used for examples/map.py
+ - pip install pillow
+script:
+  # run tests/alltests.py (which runs the actual tests)
+  # wrap in coverage, which reports the amount of code is covered by the tests.
+  - coverage run --source=nbt tests/alltests.py
+after_success:
+  # Send test coverage results to https://coverage.io/
+  coveralls

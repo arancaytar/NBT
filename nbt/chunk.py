@@ -29,6 +29,13 @@ class Chunk(object):
         return "Chunk("+str(self.coords[0])+","+str(self.coords[1])+")"
 
 
+class McRegionChunk(Chunk):
+    def __init__(self, nbt):
+        Chunk.__init__(self, nbt)
+        self.blocks = BlockArray(nbt['Level']['Blocks'].value, nbt['Level']['Data'].value)
+
+# TODO: Add class AnvilChunk(Chunk)
+
 class BlockArray(object):
     """Convenience class for dealing with a Block/data byte array."""
     def __init__(self, blocksBytes=None, addBytes=None, dataBytes=None):
